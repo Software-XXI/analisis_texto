@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------
+  # 1. FRONTEND: Angular
+  # ---------------------------------------------
+  angular-frontend:
+    image: node:20-alpine
+    container_name: angular-frontend
+    working_dir: /app
+    volumes:
+      - ./angular-app:/app
+    # Asume que usarás 'npm start' (ng serve --host 0.0.0.0)
+    command: npm start
+    ports:
+      - "4200:4200"
+    networks:
+      - app-network
+
+  # ---------------------------------------------
+  # 2. GATEWAY / AUTH: PHP
+  # ---------------------------------------------
+  php-service:
+    image: php:8.2-apache
+    container_name: php-service
+    volumes:
+      - ./php-service:/var/www/html
+    ports:
+      - "8080:80" # El servicio estará en localhost:8080
+    environment:
+      - DB_HOST=mysql-db
+      - DB_USER=root
+      - DB_PASS=secret
+      - DB_NAME=users_db
+    depends_on:
+      - mysql-db
+    networks:
+      - app-network
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: users_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  # ---------------------------------------------
+  # 3. CORE SERVICE: Java (Spring Boot)
+  # ---------------------------------------------
+  java-service:
+    image: maven:3.9-eclipse-temurin-17
+    container_name: java-service
+    working_dir: /app
+    volumes:
+      - ./java-service:/app
+      - maven-repo:/root/.m2 # Caché de dependencias para que no descargue todo cada vez
+    # Comando de desarrollo para Spring Boot
+    command: mvn spring-boot:run
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/reviews_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - postgres-db
+      - rabbitmq
+    networks:
+      - app-network
+
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reviews_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+
+  # ---------------------------------------------
+  # 4. NLP ENGINE: Python (FastAPI)
+  # ---------------------------------------------
+  python-service:
+    image: python:3.11-slim
+    container_name: python-service
+    working_dir: /app
+    volumes:
+      - ./python-service:/app
+    # Asume que usarás FastAPI y Uvicorn
+    command: >
+      sh -c "pip install -r requirements.txt && 
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - rabbitmq
+    networks:
+      - app-network
+
+  # ---------------------------------------------
+  # 5. MESSAGE BROKER: RabbitMQ
+  # ---------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672" # Puerto de comunicación de los microservicios
+      - "15672:15672" # Interfaz gráfica de administración (Dashboard)
+    networks:
+      - app-network
+
+# ---------------------------------------------
+# VOLÚMENES Y REDES
+# ---------------------------------------------
+volumes:
+  mysql-data:
+  postgres-data:
+  maven-repo:
+
+
+networks:
+  app-network:
+    driver: bridge
