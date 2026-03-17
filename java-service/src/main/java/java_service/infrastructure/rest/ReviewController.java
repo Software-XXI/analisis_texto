@@ -48,7 +48,9 @@ public class ReviewController {
 
     @GetMapping
     public ResponseEntity<List<Review>> getAll() {
-        return ResponseEntity.ok(getReviewsUseCase.execute());
+        List<Review> reviews = getReviewsUseCase.execute();
+        log.info("Total de reviews encontradas en DB: {}", reviews.size());
+        return ResponseEntity.ok(reviews);
     }
 }
 

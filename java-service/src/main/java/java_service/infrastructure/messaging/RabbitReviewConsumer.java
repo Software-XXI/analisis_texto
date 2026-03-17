@@ -19,9 +19,9 @@ public class RabbitReviewConsumer {
     private final ObjectMapper objectMapper;
 
     @RabbitListener(queues = "analysis_response")
-    public void receiveAnalysis(String messageJson) {
+    public void receiveAnalysis(AnalysisResponseDTO response) {
         try {
-            AnalysisResponseDTO response = objectMapper.readValue(messageJson, AnalysisResponseDTO.class);
+            log.info("📩 Recibido objeto desde Python: {}", response.getId());
 
             // Ejecución del caso de uso
             updateReviewUseCase.execute(
@@ -29,14 +29,11 @@ public class RabbitReviewConsumer {
                     response.getSentiment(),
                     response.getScore()
             );
+            log.info("✅ Review {} actualizada con éxito", response.getId());
 
-        } catch (JsonProcessingException e) {
-            log.error("Error de formato JSON: El contrato con Python se ha roto. Payload: {}", messageJson);
-            // No re-encolamos (NACK) porque si el JSON está mal, fallará siempre.
         } catch (Exception e) {
-            log.error("Error técnico al procesar la respuesta de la IA para ID: {}", messageJson, e);
-            // Opcional: lanzar excepción para que RabbitMQ re-intente (si es un error de DB temporal)
-            throw e;
+            log.error("Error de formato JSON: El contrato con Python se ha roto. Payload: {}", e.getMessage());
+            // No re-encolamos (NACK) porque si el JSON está mal, fallará siempre.
         }
     }
 }

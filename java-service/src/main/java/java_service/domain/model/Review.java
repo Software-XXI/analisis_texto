@@ -1,26 +1,29 @@
 package java_service.domain.model;
 
 import java.time.LocalDateTime;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Value;
 
-@Getter
+@Value // Esto la hace inmutable (campos final)
 @Builder(toBuilder = true)
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class Review {
-    private final String id;
-    private final String content;
-    private final Long userId;
-    private final String status;
-    private final String sentiment;
-    private final Double confidenceScore;
-    private final LocalDateTime createdAt;
-    private final LocalDateTime updatedAt;
+    String id;
+    Long userId;
+    String content;
+    String sentiment;
+    Double confidenceScore;
+    String status;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 
-    // Lógica de negocio pura: El dominio decide cómo mutar,
-    // pero como es inmutable (final), devolvemos una nueva instancia
+    // Tu método actual está BIEN, el secreto es USAR su retorno
     public Review completeAnalysis(String sentiment, Double score) {
         return this.toBuilder()
-                .sentiment(sentiment != null ? sentiment.toUpperCase() : "UNKNOWN")
+                .sentiment(sentiment)
                 .confidenceScore(score)
                 .status("COMPLETED")
                 .updatedAt(LocalDateTime.now())
