@@ -1,0 +1,5 @@
+python-service/.venv
+python-service/__pycache__
+python-service/.env
+python-service/.env.example
+python-service/.env.prod
